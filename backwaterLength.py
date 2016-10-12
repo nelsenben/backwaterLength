@@ -94,7 +94,7 @@ class Channel:
                 radius1 = radius2
 
             changeTotal1 = abs(d_totalL2-d_totalL1)
-
+            itteration += 1
         print('debug')
 
 
