@@ -2,6 +2,8 @@ __author__ = "Ben Nelsen"
 
 import numpy as np
 import os
+import math
+from fractions import Fraction
 
 class Channel:
 
@@ -23,7 +25,6 @@ class Channel:
         self.depthi = 0
         self.depthf = 0
         self.slope = 0
-
 
     def readConfigurationfile(self, s_folderPath, s_fileName):
 
@@ -48,13 +49,14 @@ class Channel:
                 print('value not understood...')
 
     def manningsEquation(self, slope, mannings, width, normalDepth):
-
-        flow = 1.49/mannings*(width*normalDepth)*(width*normalDepth/(width+2*normalDepth))**(2/3)*slope**0.5
+        first = Fraction('2/3')
+        second = Fraction('1/2')
+        flow = (1.49/mannings)*(width*normalDepth)*(((width*normalDepth)/(width+(2*normalDepth)))**first)*(slope**second)
         return flow
 
     def sequentDepths(self, normalDepth, unitFlow):
 
-        depthSequent = normalDepth/2*(np.sqrt(1+8*unitFlow**2/(32.2*normalDepth**3))-1)
+        depthSequent = (normalDepth/2)*(np.sqrt(1+((8*unitFlow**2)/(32.2*normalDepth**3)))-1)
         return depthSequent
 
     def calculateFroude(self, velocity, depth):
@@ -63,10 +65,11 @@ class Channel:
         return froudeNumber
 
     def lengthItteration(self):
+        s_iterationOutput = ""
         d_totalL1 = 0
         d_totalL2 = 0
         changeTotal1 = 9999
-        itteration = 1
+        iteration = 1
 
         while not (changeTotal1 < self.epsilon*d_totalL2):
             depth1 = self.depthi
@@ -76,15 +79,16 @@ class Channel:
 
             d_totalL1 = d_totalL2
             d_totalL2 = 0
-            unitY = (self.depthf-self.depthi)/itteration
-            for index in range(0,itteration):
+            unitY = (self.depthf-self.depthi)/iteration
+            for index in range(0,iteration):
                 y2 = depth1 + unitY
                 velocity2 = self.flow/(y2*self.channelwidth)
                 energy2 = y2 + velocity2 ** 2 / (2 * 32.2)
                 radius2 = self.channelwidth * y2 / (self.channelwidth + 2 * y2)
                 averageRadius = (radius1 + radius2)/2
                 averageVelocity = (velocity1 + velocity2)/2
-                averageSlope = (averageVelocity*self.mannings/(1.49*averageRadius**(2/3)))**2
+                first = Fraction('2/3')
+                averageSlope = (averageVelocity*self.mannings/(1.49*averageRadius**first))**2
                 changeLength = (energy2-energy1)/(self.slope-averageSlope)
                 d_totalL2 = d_totalL2 + changeLength
 
@@ -94,13 +98,10 @@ class Channel:
                 radius1 = radius2
 
             changeTotal1 = abs(d_totalL2-d_totalL1)
-            itteration += 1
-        print('debug')
+            s_iterationOutput = s_iterationOutput + str(iteration) + ", " + str(d_totalL2) + ",    " + str(changeTotal1) + "\n"
+            iteration += 1
 
-
-
-
-
+        return s_iterationOutput
 
     def backwaterDetermination(self):
         for index in range(0,2):
@@ -153,5 +154,24 @@ class Channel:
         else:
             print('No Jump occurs...')
 
-        self.lengthItteration()
+        s_output = self.lengthItteration()
+
+        return s_output
+
+    def outputPrinting(self,s_output, s_folderPath, s_writeFileName):
+        s_filePath = os.path.join(s_folderPath, s_writeFileName)
+        f_data = file(s_filePath, 'w')
+        inputOptions = 'Inputs: \n b = ' + str(self.channelwidth) + ' ft n = ' + str(self.mannings) + ' S01 = ' + str(
+            self.S01) + ' S02 = ' + str(self.S02) + ' EPS = ' + str(self.epsilon) + ' Q = ' + str(self.flow) + ' cfs \n'
+        depths = 'Depths: \n y01 = ' + str(self.y01) + ' ft S2 = ' + str(self.S2) + ' ft \n y02 = ' + str(self.y02) + ' ft S1 = ' + str(self.S1) + ' ft \n '
+        if self.jump == True:
+            depths = depths + 'yi = ' + str(self.depthi) + ' ft yf = ' + str(self.depthf) + ' ft \n'
+            jump = 'A jump occurs ' + self.jumpLocation + ' from the change in slope.  We know a jump must occur'
+        else:
+            jump = 'A jump does not occur. We know a jump does not occur'
+
+        jump = jump + ' because the Froude number upstream is ' + str(self.Fr1) + ' and the Froude number downsteam is ' + str(self.Fr2) + '\n'
+        writestatement = inputOptions + depths + jump + s_output
+        f_data.write(writestatement)
+        f_data.close()
 

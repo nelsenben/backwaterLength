@@ -4,9 +4,10 @@ import backwaterLength
 
 
 s_folderPath = "C:\\Users\\bnelsen2\\Documents\\SeniorYearOne\\CEEN433"
-s_fileName = "backwaterConfigFile.txt"
+s_fileName = "backwaterConfigFile2.txt"
+s_writeFileName = "backwaterProblem2.txt"
 
 backwater = backwaterLength.Channel()
 backwater.readConfigurationfile(s_folderPath, s_fileName)
-backwater.backwaterDetermination()
-
+data = backwater.backwaterDetermination()
+backwater.outputPrinting(data, s_folderPath, s_writeFileName)
